@@ -1,0 +1,34 @@
+FROM nvidia/cuda:10.0-cudnn7-devel-ubuntu16.04
+ADD docker-material.tar.gz /root
+RUN cp -r /root/docker-material/sourceslist/* /etc/apt && \
+apt-get update && \
+apt-get install -y zlib1g-dev \
+openssl \
+libssl-dev \
+libglib2.0-0 \
+libsm6 \
+libxrender1 \
+libxext-dev \
+libmysqlclient-dev \
+openssh-server \
+wget && \
+wget http://npm.taobao.org/mirrors/python/3.6.9/Python-3.6.9.tar.xz && \
+tar xJf Python-3.6.9.tar.xz && \
+cd Python-3.6.9/ && ./configure --with-ssl && make && make install && \
+mkdir ~/.pip && echo '[global] \n index-url = https://mirrors.aliyun.com/pypi/simple/' >> ~/.pip/pip.conf && \
+pip3 --no-cache-dir install --upgrade setuptools && \
+python3 -m pip install --upgrade pip && \
+pip3 --no-cache-dir install wheel && \
+pip3 --no-cache-dir install torch==1.0.1 torchvision==0.2.0 -f https://download.pytorch.org/whl/torch_stable.html && \
+cd /root/docker-material && \
+pip3 --no-cache-dir install -r requirements.txt && \ 
+cd /root/docker-material/torchlight && python3 setup.py install && \
+cd / && rm /Python-3.6.9.tar.xz && rm -r /Python-3.6.9 && \
+mv /root/docker-material/.torch /root && \
+rm -r /root/docker-material && \
+mkdir -p /var/run/sshd && \
+echo 'root:123456' | chpasswd && \
+sed -i 's#prohibit-password#yes#' /etc/ssh/sshd_config
+EXPOSE 22
+ENTRYPOINT /usr/sbin/sshd -D
+

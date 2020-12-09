@@ -1,0 +1,49 @@
+# BASE IMAGE
+FROM nvidia/cuda:10.0-cudnn7-devel-ubuntu16.04 
+
+# LABEL MAINTAINER
+LABEL maintainer="ltobenull@gmail.com"
+
+SHELL ["/bin/bash","-c"]
+
+WORKDIR /tmp
+# copy安装文件
+COPY Python-3.6.9.tar.xz /tmp/
+COPY st-gcn /tmp/st-gcn
+# 设置 root 密码
+RUN echo 'root:lsbssg' | chpasswd \
+# 安装openssh-server 并配置
+  && apt-get update && apt-get -y install openssh-server \
+  && sed -i 's/UsePAM yes/UsePAM no/g' /etc/ssh/sshd_config \ 
+  && sed  -i 's/PermitRootLogin prohibit-password/PermitRootLogin yes/g' /etc/ssh/sshd_config \
+  && mkdir /var/run/sshd \
+# 安装python依赖包
+  && apt-get -y install build-essential python-dev python-setuptools python-pip python-smbus \
+  && apt-get -y install build-essential libncursesw5-dev libgdbm-dev libc6-dev \
+  && apt-get -y install zlib1g-dev libsqlite3-dev tk-dev \
+  && apt-get -y install libssl-dev openssl \
+  && apt-get -y install libffi-dev \
+# 安装python 3.6.9
+  && mkdir -p /usr/local/python3.6 \
+  && tar xvf Python-3.6.9.tar.xz \
+  && cd Python-3.6.9 \
+  && ./configure --prefix=/usr/local/python3.6 \
+  && make altinstall \
+# 建立软链接
+  && ln -snf /usr/local/python3.6/bin/python3.6 /usr/bin/python3 \
+  && ln -snf /usr/local/python3.6/bin/pip3.6 /usr/bin/pip3\
+# 安装pytorch
+  && mkdir ~/.pip && echo -e '[global] \nindex-url = https://mirrors.aliyun.com/pypi/simple/' >> ~/.pip/pip.conf \
+  && pip3 install torch===1.2.0 torchvision===0.4.0 -f https://download.pytorch.org/whl/torch_stable.html \
+# 安装 st_gcn的一些包
+  && cd /tmp/st-gcn \
+  && pip3 install -r requirements.txt \
+  && cd /tmp/st-gcn/torchlight \
+  && python3 setup.py install \
+# 清理copy的安装文件
+  && apt-get clean \
+  && rm -rf /tmp/* /var/tmp/*
+
+EXPOSE 22
+
+CMD ["/usr/sbin/sshd", "-D"]
